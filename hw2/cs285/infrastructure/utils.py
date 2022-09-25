@@ -55,7 +55,7 @@ def mean_squared_error(a, b):
 ############################################
 
 def sample_trajectory(env, policy, max_path_length, render=False, render_mode=('rgb_array')):
-    # TODO: get this from hw1
+    # DONE: get this from hw1
 
     # initialize env for the beginning of a new rollout
     ob = env.reset() # HINT: should be the output of resetting the env
@@ -88,13 +88,13 @@ def sample_trajectory(env, policy, max_path_length, render=False, render_mode=('
 
         # DONE end the rollout if the rollout ended
         # HINT: rollout can end due to done, or due to max_path_length
-        if (steps % 500) == 0:
-            print("steps = {}".format(steps))
+        # if (steps % 500) == 0:
+            # print("steps = {}".format(steps))
         
         if done or (steps >= max_path_length):
             rollout_done = True # HINT: this is either 0 or 1
-            print('steps = {} ; max_path_length = {}'.format(steps, max_path_length))
-            print('rollout is done')
+            #print('steps = {} ; max_path_length = {}'.format(steps, max_path_length))
+            #print('rollout is done')
         else:
             rollout_done = False
 
@@ -107,7 +107,7 @@ def sample_trajectory(env, policy, max_path_length, render=False, render_mode=('
 
 
 def sample_trajectories(env, policy, min_timesteps_per_batch, max_path_length, render=False, render_mode=('rgb_array')):
-    # TODO: get this from hw1
+    # DONE: get this from hw1
     """
         Collect rollouts until we have collected min_timesteps_per_batch steps.
 
@@ -136,7 +136,7 @@ def sample_trajectories(env, policy, min_timesteps_per_batch, max_path_length, r
     return paths, timesteps_this_batch
 
 def sample_n_trajectories(env, policy, ntraj, max_path_length, render=False, render_mode=('rgb_array')):
-    # TODO: get this from hw1
+    # DONE: get this from hw1
     """
         Collect ntraj rollouts.
 
@@ -146,7 +146,7 @@ def sample_n_trajectories(env, policy, ntraj, max_path_length, render=False, ren
     n_paths = [] # list to be filled with dictionaries
 
     for i in range(ntraj):
-        print("sampling {}-th trajectory".format(i))
+        # print("sampling {}-th trajectory".format(i))
         curr_path_dict = sample_trajectory(env, policy, max_path_length, render)
         n_paths.append(curr_path_dict)
 

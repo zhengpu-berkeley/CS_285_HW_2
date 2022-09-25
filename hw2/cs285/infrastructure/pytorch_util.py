@@ -80,4 +80,6 @@ def from_numpy(*args, **kwargs):
 
 
 def to_numpy(tensor):
+    if type(tensor) == 'numpy.ndarray':
+        return tensor
     return tensor.to('cpu').detach().numpy()

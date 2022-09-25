@@ -43,6 +43,10 @@ class PGAgent(BaseAgent):
         # using helper functions to compute qvals and advantages, and
         # return the train_log obtained from updating the policy
 
+        qvals = self.calculate_q_vals(rewards_list)
+        advantages = self.estimate_advantage(observations, rewards_list, qvals, terminals)
+        train_log = self.actor.update(observations, actions, advantages, qvals)
+
         return train_log
 
     def calculate_q_vals(self, rewards_list):
@@ -66,17 +70,24 @@ class PGAgent(BaseAgent):
 
         # Note: q_values should first be a 2D list where the first dimension corresponds to 
         # trajectories and the second corresponds to timesteps, 
-        # then flattened to a 1D numpy array.
+        # then flattened to a 1D numpy array. ----> use np.concatenate instead of np.array
 
         if not self.reward_to_go:
-            TODO
+            q_val_list = []
+            for rewards in rewards_list:
+                discounted_return = self._discounted_return(rewards)
+                q_val_list.append(discounted_return)
+            return np.concatenate(q_val_list)
 
         # Case 2: reward-to-go PG
         # Estimate Q^{pi}(s_t, a_t) by the discounted sum of rewards starting from t
         else:
-            TODO
+            q_val_list = []
+            for rewards in rewards_list:
+                discounted_cumsum = self._discounted_cumsum(rewards)
+                q_val_list.append(discounted_cumsum)
+            return np.concatenate(q_val_list)
 
-        return q_values
 
     def estimate_advantage(self, obs: np.ndarray, rews_list: np.ndarray, q_values: np.ndarray, terminals: np.ndarray):
 
@@ -90,46 +101,72 @@ class PGAgent(BaseAgent):
             values_unnormalized = self.actor.run_baseline_prediction(obs)
             ## ensure that the value predictions and q_values have the same dimensionality
             ## to prevent silent broadcasting errors
+
             assert values_unnormalized.ndim == q_values.ndim
-            ## TODO: values were trained with standardized q_values, so ensure
+            ## DONE: values were trained with standardized q_values, so ensure
                 ## that the predictions have the same mean and standard deviation as
                 ## the current batch of q_values
-            values = TODO
+            values = values_unnormalized * np.std(q_values) + np.mean(q_values)
 
+            batch_size = obs.shape[0]
+
+            ## append T+1 being 0 for recursive calculation
+            values = np.append(values, [0])
+            ## flattings rews_list
+            rews = np.concatenate(rews_list)
+            ## Empty array to populate with advantages
+            advantages = np.zeros(batch_size + 1)
+
+            # if we do gae
+            print('here:::')
+            print(self.gae_lambda)
+            print('here ---- here')
             if self.gae_lambda is not None:
-                ## append a dummy T+1 value for simpler recursive calculation
-                values = np.append(values, [0])
-
-                ## combine rews_list into a single array
-                rews = np.concatenate(rews_list)
-
-                ## create empty numpy array to populate with GAE advantage
-                ## estimates, with dummy T+1 value for simpler recursive calculation
-                batch_size = obs.shape[0]
-                advantages = np.zeros(batch_size + 1)
-
+                
                 for i in reversed(range(batch_size)):
-                    ## TODO: recursively compute advantage estimates starting from
-                        ## timestep T.
-                    ## HINT: use terminals to handle edge cases. terminals[i]
-                        ## is 1 if the state is the last in its trajectory, and
-                        ## 0 otherwise.
+                    ## append a dummy T+1 value for simpler recursive calculation
+                    values = np.append(values, [0])
 
-                # remove dummy advantage
-                advantages = advantages[:-1]
+                    ## combine rews_list into a single array
+                    rews = np.concatenate(rews_list)
 
+                    ## create empty numpy array to populate with GAE advantage
+                    ## estimates, with dummy T+1 value for simpler recursive calculation
+                    batch_size = obs.shape[0]
+                    advantages = np.zeros(batch_size + 1)
+
+                    for i in reversed(range(batch_size)):
+                        ## TODO: recursively compute advantage estimates starting from
+                            ## timestep T.
+                        ## HINT: use terminals to handle edge cases. terminals[i]
+                            ## is 1 if the state is the last in its trajectory, and
+                            ## 0 otherwise.
+                        delta_i = rews[i] + self.gamma * values[i+1] - values[i]
+                        advantages[i] = self.gamma * self.gae_lambda * advantages[i+1] + delta_i
+                    # remove dummy advantage
+                    advantages = advantages[:-1]
+                        
+
+            # if we do not do gae
             else:
-                ## TODO: compute advantage estimates using q_values, and values as baselines
-                advantages = TODO
+                for i in reversed(range(batch_size)):
+                    if terminals[i] == 1:
+                        advantages[i] = rews[i] - values[i]
+                    else:
+                        next_rew_sum_recovered_from_adv = advantages[i+1] + values[i+1]
+                        rew_sum = rews[i] + self.gamma * next_rew_sum_recovered_from_adv
+                        advantages[i] =  rew_sum - values[i]
+                advantages = advantages[:-1]
+            
 
-        # Else, just set the advantage to [Q]
         else:
             advantages = q_values.copy()
 
         # Normalize the resulting advantages to have a mean of zero
         # and a standard deviation of one
         if self.standardize_advantages:
-            advantages = TODO
+            small_number = 0.000001
+            advantages = (advantages - np.mean(advantages)) / (np.std(advantages) + small_number)
 
         return advantages
 
